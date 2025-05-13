@@ -74,5 +74,24 @@ jobs:
           kubectl set image deployment/fifty-two-books-tracker \
             fifty-two-books-tracker=${{ secrets.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} \
             -n ${{ secrets.KUBE_NAMESPACE }}
+          
           kubectl rollout status deployment/fifty-two-books-tracker \
-            -n ${{ secrets.KUBE_NAMESPACE }} --timeout=2m
+            -n ${{ secrets.KUBE_NAMESPACE }} --timeout=5m
+          
+           echo "===== Deployment Status ====="
+            kubectl describe deployment fifty-two-books-tracker \
+              -n ${{ secrets.KUBE_NAMESPACE }}
+          
+          echo "===== Pod List ====="
+                      kubectl get pods -n ${{ secrets.KUBE_NAMESPACE }} -o wide
+          echo "===== Pod Logs ====="
+                      for pod in $(kubectl get pods \
+                                    -n ${{ secrets.KUBE_NAMESPACE }} \
+                                    -l app=fifty-two-books-tracker \
+                                    -o name); do
+                        echo "---- Logs from $pod ----"
+                        kubectl logs "$pod" -n ${{ secrets.KUBE_NAMESPACE }} || true
+                      done
+
+                      exit 1
+                    fi

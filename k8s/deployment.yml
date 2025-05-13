@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: fifty-two-books-tracker
-          image: 123456789012.dkr.ecr.eu-west-1.amazonaws.com/fifty-two-books-tracker:latest
+          image: 940482412360.dkr.ecr.eu-west-1.amazonaws.com/fifty-two-books-tracker
           ports:
             - containerPort: 8080
           env:
