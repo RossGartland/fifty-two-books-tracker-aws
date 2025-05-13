@@ -26,7 +26,6 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -60,10 +59,16 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }}
 
-      - name: Deploy to Kubernetes
+
+      - name: Apply k8s Deployment manifest
+        run: |
+          kubectl apply -f k8s/deployment.yml \
+            -n ${{ secrets.KUBE_NAMESPACE }}
+
+      - name: Update image & wait for rollout
         run: |
           kubectl set image deployment/fifty-two-books-tracker \
             fifty-two-books-tracker=${{ secrets.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} \
             -n ${{ secrets.KUBE_NAMESPACE }}
-          # Optionally wait for rollout
-          kubectl rollout status deployment/fifty-two-books-tracker -n ${{ secrets.KUBE_NAMESPACE }}
+          kubectl rollout status deployment/fifty-two-books-tracker \
+            -n ${{ secrets.KUBE_NAMESPACE }} --timeout=2m
