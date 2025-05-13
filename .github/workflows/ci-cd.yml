@@ -37,12 +37,12 @@ jobs:
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
-
-      - name: Build & push Docker image
+      - name: Build and Push Docker Image
         run: |
-          IMAGE_URI=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
-          docker build -t $IMAGE_URI .
-          docker push $IMAGE_URI
+          image_uri=${{ secrets.ECR_REPOSITORY }}
+          tag=latest
+          docker build -t $image_uri:$tag .
+          docker push $image_uri:$tag
 
   deploy:
     name: Deploy to EKS
@@ -63,7 +63,7 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           kubectl set image deployment/fifty-two-books-tracker \
-            fifty-two-books-tracker=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} \
+            fifty-two-books-tracker=${{ secrets.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} \
             -n ${{ secrets.KUBE_NAMESPACE }}
           # Optionally wait for rollout
           kubectl rollout status deployment/fifty-two-books-tracker -n ${{ secrets.KUBE_NAMESPACE }}
