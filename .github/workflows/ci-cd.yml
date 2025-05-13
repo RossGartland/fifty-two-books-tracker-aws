@@ -76,7 +76,7 @@ jobs:
           set -eo pipefail
 
           kubectl set image deployment/fifty-two-books-tracker \
-            fifty-two-books-tracker=${{ secrets.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} \
+            fifty-two-books-tracker=${{ secrets.ECR_REPOSITORY }}:latest \
             -n ${{ secrets.KUBE_NAMESPACE }}
 
           if ! kubectl rollout status deployment/fifty-two-books-tracker \
