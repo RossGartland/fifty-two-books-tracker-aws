@@ -29,19 +29,23 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region:            ${{ secrets.AWS_REGION }}
 
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
+        with:
+          region: ${{ secrets.AWS_REGION }}
 
       - name: Build and Push Docker Image
         run: |
-          image_uri=${{ secrets.ECR_REPOSITORY }}
-          tag=latest
-          docker build -t $image_uri:$tag .
-          docker push $image_uri:$tag
+          REPO_NAME=${{ secrets.ECR_REPOSITORY }}              
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          IMAGE_URI="$ACCOUNT_ID.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$REPO_NAME"
+          echo "Building & pushing $IMAGE_URI:${IMAGE_TAG}"
+          docker build -t $IMAGE_URI:${IMAGE_TAG} .
+          docker push $IMAGE_URI:${IMAGE_TAG}
 
   deploy:
     name: Deploy to EKS
@@ -55,9 +59,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region:            ${{ secrets.AWS_REGION }}
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }}
@@ -69,29 +73,33 @@ jobs:
           kubectl apply -f k8s/deployment.yml \
             -n ${{ secrets.KUBE_NAMESPACE }}
 
-      - name: Update image & wait for rollout
+      - name: Update image & wait for rollout (with debug on failure)
+        shell: bash
         run: |
+          set -eo pipefail
+
           kubectl set image deployment/fifty-two-books-tracker \
             fifty-two-books-tracker=${{ secrets.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} \
             -n ${{ secrets.KUBE_NAMESPACE }}
-          
-          kubectl rollout status deployment/fifty-two-books-tracker \
-            -n ${{ secrets.KUBE_NAMESPACE }} --timeout=5m
-          
-           echo "===== Deployment Status ====="
+
+          if ! kubectl rollout status deployment/fifty-two-books-tracker \
+                -n ${{ secrets.KUBE_NAMESPACE }} --timeout=5m; then
+
+            echo "===== Deployment Status ====="
             kubectl describe deployment fifty-two-books-tracker \
               -n ${{ secrets.KUBE_NAMESPACE }}
-          
-          echo "===== Pod List ====="
-                      kubectl get pods -n ${{ secrets.KUBE_NAMESPACE }} -o wide
-          echo "===== Pod Logs ====="
-                      for pod in $(kubectl get pods \
-                                    -n ${{ secrets.KUBE_NAMESPACE }} \
-                                    -l app=fifty-two-books-tracker \
-                                    -o name); do
-                        echo "---- Logs from $pod ----"
-                        kubectl logs "$pod" -n ${{ secrets.KUBE_NAMESPACE }} || true
-                      done
 
-                      exit 1
-                    fi
+            echo "===== Pod List ====="
+            kubectl get pods -n ${{ secrets.KUBE_NAMESPACE }} -o wide
+
+            echo "===== Pod Logs ====="
+            for pod in $(kubectl get pods \
+                          -n ${{ secrets.KUBE_NAMESPACE }} \
+                          -l app=fifty-two-books-tracker \
+                          -o name); do
+              echo "---- Logs from $pod ----"
+              kubectl logs "$pod" -n ${{ secrets.KUBE_NAMESPACE }} || true
+            done
+
+            exit 1
+          fi
