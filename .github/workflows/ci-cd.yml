@@ -33,19 +33,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region:            ${{ secrets.AWS_REGION }}
 
+
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
-        with:
-          region: ${{ secrets.AWS_REGION }}
 
       - name: Build and Push Docker Image
         run: |
-          REPO_NAME=${{ secrets.ECR_REPOSITORY }}              
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          IMAGE_URI="$ACCOUNT_ID.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$REPO_NAME"
-          echo "Building & pushing $IMAGE_URI:${IMAGE_TAG}"
-          docker build -t $IMAGE_URI:${IMAGE_TAG} .
-          docker push $IMAGE_URI:${IMAGE_TAG}
+          image_uri=${{ secrets.ECR_REPOSITORY }}
+          tag=latest
+          docker build -t $image_uri:$tag .
+          docker push $image_uri:$tag
 
   deploy:
     name: Deploy to EKS
